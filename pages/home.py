@@ -174,6 +174,8 @@ with col_principal:
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "user_input" not in st.session_state:
+        st.session_state.user_input = ""
 
     # Exibir mensagens usando streamlit-chat
     with chat_container:
@@ -190,6 +192,10 @@ with col_principal:
             # Gerar resposta
             response = f"Echo: {user_input}"
             st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            # Limpar o input
+            st.session_state.user_input = ""
+            #st.rerun()
 
     st.text_input("Digite sua mensagem:", key="user_input", on_change=on_input_change)
 

@@ -99,10 +99,14 @@ with col2:
         })
         st.rerun()
 
-    cleart_button = st.button("Limpar thread", key=f"limpar_thread_{agente_selecionado}")
-    if cleart_button:
-        st.session_state.messages = []
-        st.rerun()
+    subcol2_1, subcol2_2 = st.columns(2)
+    with subcol2_1:
+        cleart_button = st.button("Limpar thread", key=f"limpar_thread_{agente_selecionado}")
+        if cleart_button:
+            st.session_state.messages = []
+            st.rerun()
+    with subcol2_2:
+        st.button("Remover arquivos", key="remover_arquivos")
 
 with col3:
     st.title("Logs")  # Logs de cada agente

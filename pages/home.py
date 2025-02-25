@@ -1,5 +1,7 @@
 import streamlit as st
 import time
+import random
+from streamlit_chat import message
 
 # Configuração inicial da página
 st.set_page_config(page_title="Playground", layout="wide")
@@ -14,6 +16,7 @@ if 'selecao_atual' not in st.session_state:
 if 'confirmar_delecao' not in st.session_state:
     st.session_state.confirmar_delecao = False
 
+
 # Funções auxiliares
 def atualizar_nome():
     if st.session_state.novo_nome and st.session_state.novo_nome not in st.session_state.opcoes_assist:
@@ -27,8 +30,7 @@ def atualizar_nome_existente():
         st.session_state.selecao_atual = st.session_state.nome_editado
 
 # Estilo CSS personalizado
-st.markdown("""
-    <style>
+css = """<style>
     .main {
         padding: 0rem 1rem;
     }
@@ -65,8 +67,25 @@ st.markdown("""
     [data-testid="stSidebarNav"]::-webkit-scrollbar-thumb:hover {
         background: #555;
     }
+    /* Estilizando o upload de arquivos */
+    [data-testid='stFileUploader'] {
+        width: max-content;
+    }
+    [data-testid='stFileUploader'] section {
+        padding: 0;
+        float: left;
+    }
+    [data-testid='stFileUploader'] section > input + div {
+        display: none;
+    }
+    [data-testid='stFileUploader'] section + div {
+        float: right;
+        padding-top: 0;
+    }
+
     </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(css, unsafe_allow_html=True)
 
 # Definição do layout principal
 if st.session_state.mostrar_logs:
@@ -124,32 +143,83 @@ with col_menu:
 # Coluna principal
 with col_principal:
     # Cabeçalho
-    col_titulo, col_botao = st.columns([5,1])
+    col_titulo, col_limpar, col_upload, col_botoes = st.columns([4, 1, 1, 1])
+    
     with col_titulo:
         st.title("Playground")
-    with col_botao:
-        st.button('Logs', key='toggle_logs', on_click=lambda: setattr(st.session_state, 'mostrar_logs', not st.session_state.mostrar_logs))
-    
-    # Área de entrada e saída
-    prompt = st.text_area("Digite seu prompt aqui", height=200, key="prompt")
 
-    col1, col2, col3 = st.columns([1,1,5])
-    with col1:
-        enviar = st.button("Enviar")
+    with col_limpar:
+        if st.button("Limpar thread", key="limpar_thread"):
+            st.session_state.messages = []
+            st.rerun()
         
-    st.markdown("### Resposta")
-    output_placeholder = st.empty()
+    with col_upload:
+        if "uploaded_file_counter" not in st.session_state:
+            st.session_state["uploaded_file_counter"] = 1
 
-    if enviar:
-        with st.spinner("Gerando resposta..."):
-            time.sleep(2)
-            resposta = "Esta é uma resposta simulada do ChatGPT. Em uma implementação real, aqui seria integrada a API do OpenAI para gerar respostas reais."
-            with output_placeholder:
-                st.markdown(f"""
-                <div class="output-box">
-                    {resposta}
-                </div>
-                """, unsafe_allow_html=True)
+        uploaded_file = st.file_uploader(
+            "Upload File", 
+            type=['txt', 'pdf', 'docx'], 
+            key=f"file_uploader_{st.session_state['uploaded_file_counter']}", 
+            label_visibility="collapsed"
+        )
+
+    with col_botoes:
+        if "mostrar_logs" not in st.session_state:
+            st.session_state.mostrar_logs = False
+        
+        st.button('Logs', key='toggle_logs', on_click=lambda: setattr(st.session_state, 'mostrar_logs', not st.session_state.mostrar_logs))
+
+    chat_container = st.container()
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Exibir mensagens usando streamlit-chat
+    with chat_container:
+        for i, msg in enumerate(st.session_state.messages):
+            message(msg["content"], is_user=(msg["role"] == "user"), key=str(i))
+
+    # Input do usuário usando callback
+    def on_input_change():
+        user_input = st.session_state.user_input
+        if user_input:
+            # Adicionar mensagem do usuário ao histórico
+            st.session_state.messages.append({"role": "user", "content": user_input})
+            
+            # Gerar resposta
+            response = f"Echo: {user_input}"
+            st.session_state.messages.append({"role": "assistant", "content": response})
+
+    st.text_input("Digite sua mensagem:", key="user_input", on_change=on_input_change)
+
+    # Processar o arquivo carregado
+    if uploaded_file is not None:
+        start_time = time.time()
+        file_extension = uploaded_file.name.split('.')[-1].lower()
+        
+        if file_extension == 'txt':
+            try:
+                file_content = uploaded_file.read().decode('utf-8')
+            except UnicodeDecodeError:
+                file_content = "Please provide utf-8 encoded text."
+        else:
+            file_content = f"File '{uploaded_file.name}' uploaded successfully. Binary content not displayed."
+        
+        end_time = time.time()
+        
+        response = f"Received file: {uploaded_file.name}\n\nContent:\n{file_content}"
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": response,
+            "timestamp": time.time(),
+            "tokens": len(str(file_content).split()),
+            "response_time": end_time - start_time
+        })
+        
+        # Incrementar contador do file uploader para resetar
+        st.session_state["uploaded_file_counter"] += 1
+        st.rerun()
 
     # Informações de status
     st.markdown("---")
@@ -168,4 +238,3 @@ if st.session_state.mostrar_logs:
         st.write("Aqui você pode ver os logs do sistema")
         st.write("Histórico de interações")
         st.write("Estatísticas de uso")
-

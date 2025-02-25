@@ -2,7 +2,8 @@ import streamlit as st
 import time
 
 # Configurar layout wide no início do script
-st.set_page_config(layout="wide")
+# Hide the sidebar menu and set wide layout
+st.set_page_config(initial_sidebar_state="collapsed", layout="wide")
 
 # Criar cinco colunas (incluindo espaços)
 col1, space1, col2, space2, col3 = st.columns([60, 20, 60, 20, 60])
@@ -30,14 +31,44 @@ with col1:
 
 with col2:
     st.title("Thread")  # Threads de cada agente
-    subcol2_1, subcol2_2 = st.columns(2)
-    with subcol2_1:
-        st.button("Limpar thread", key=f"limpar_thread_{agente_selecionado}")
-    with subcol2_2:
-        st.button("Upload file", key="upload_file")
+
+    if "uploaded_file" not in st.session_state:
+        st.session_state["uploaded_file"] = 1
+
+    uploaded_file = st.file_uploader("Choose a file", type=['txt', 'pdf', 'docx'], key=st.session_state["uploaded_file"], label_visibility="visible")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
+
+    if uploaded_file is not None:
+        # Read file content based on file type
+        start_time = time.time()
+        file_extension = uploaded_file.name.split('.')[-1].lower()
+        
+        if file_extension == 'txt':
+            # For text files, decode as UTF-8
+            try:
+                file_content = uploaded_file.read().decode('utf-8')
+            except UnicodeDecodeError:
+                file_content = f"Please provide utf-8 encoded text."
+        else:
+            # For binary files (PDF, DOCX, etc.), just acknowledge the upload
+            file_content = f"File '{uploaded_file.name}' uploaded successfully. Binary content not displayed."
+        
+        end_time = time.time()
+        #Add file content to messages
+        response = f"Received file: {uploaded_file.name}\n\nContent:\n{file_content}"
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": response,
+            "timestamp": time.time(),
+            "tokens": len(str(file_content).split()),  # Simple token count estimation
+            "response_time": end_time - start_time
+        })
+        
+        # Clear the file uploader
+        st.session_state["uploaded_file"] += 1
+        st.rerun()
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -68,9 +99,10 @@ with col2:
         })
         st.rerun()
 
-    #if st.button("Limpar thread", key=f"limpar_thread_{agente_selecionado}"):
-    #    st.session_state.messages = []
-    #      st.rerun()
+    cleart_button = st.button("Limpar thread", key=f"limpar_thread_{agente_selecionado}")
+    if cleart_button:
+        st.session_state.messages = []
+        st.rerun()
 
 with col3:
     st.title("Logs")  # Logs de cada agente

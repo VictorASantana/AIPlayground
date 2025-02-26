@@ -20,7 +20,8 @@ if 'confirmar_delecao' not in st.session_state:
     st.session_state.confirmar_delecao = False
 if 'ids' not in st.session_state:
     st.session_state.ids = []
-
+if 'confirmar_delecao' not in st.session_state:
+    st.session_state.confirmar_delecao = False
 
 # Funções auxiliares
 def atualizar_nome():
@@ -173,7 +174,7 @@ with col_principal:
 
     with col_remove:
         remove_file = st.button("Remover arquivos", key="remover_arquivo")
-
+      
     with col_botoes:
         if "mostrar_logs" not in st.session_state:
             st.session_state.mostrar_logs = False
@@ -251,7 +252,6 @@ with col_principal:
             "timestamp": time.time()
         })
         st.rerun()
-
     # Informações de status
     st.markdown("---")
     col1, col2, col3 = st.columns(3)

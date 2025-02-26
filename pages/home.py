@@ -2,9 +2,17 @@ import streamlit as st
 import time
 import random
 from streamlit_chat import message
+from services.file_storage import save_file, delete_file
+from services.assistant_storage import (
+    create_assistant,
+    get_assistant,
+    get_all_assistants,
+    update_assistant,
+    delete_assistant
+)
 
 # Configuração inicial da página
-st.set_page_config(page_title="Playground", layout="wide")
+st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
 
 # Inicialização das variáveis de estado
 if 'mostrar_logs' not in st.session_state:
@@ -13,21 +21,77 @@ if 'opcoes_assist' not in st.session_state:
     st.session_state.opcoes_assist = ["Padrão"]
 if 'selecao_atual' not in st.session_state:
     st.session_state.selecao_atual = "Padrão"
+if 'id_atual' not in st.session_state:
+    st.session_state.id_atual = 1
 if 'confirmar_delecao' not in st.session_state:
     st.session_state.confirmar_delecao = False
+if 'ids' not in st.session_state:
+    st.session_state.ids = []
+if 'assistants_map' not in st.session_state:
+    st.session_state.assistants_map = {}
 
+# Inicializar variáveis de configuração
+if 'current_model' not in st.session_state:
+    st.session_state.current_model = "GPT-4"
+if 'current_temperature' not in st.session_state:
+    st.session_state.current_temperature = 1.0
+if 'current_top_p' not in st.session_state:
+    st.session_state.current_top_p = 1.0
+if 'current_max_tokens' not in st.session_state:
+    st.session_state.current_max_tokens = 2000
+if 'current_system_msg' not in st.session_state:
+    st.session_state.current_system_msg = "Você é um assistente prestativo, criativo e honesto."
+
+# Inicializar variáveis temporárias para os campos de edição
+if 'sistema_msg' not in st.session_state:
+    st.session_state.sistema_msg = st.session_state.current_system_msg
+if 'modelo' not in st.session_state:
+    st.session_state.modelo = st.session_state.current_model
+if 'temperatura' not in st.session_state:
+    st.session_state.temperatura = st.session_state.current_temperature
+if 'top_p' not in st.session_state:
+    st.session_state.top_p = st.session_state.current_top_p
+if 'tokens_max' not in st.session_state:
+    st.session_state.tokens_max = st.session_state.current_max_tokens
 
 # Funções auxiliares
 def atualizar_nome():
     if st.session_state.novo_nome and st.session_state.novo_nome not in st.session_state.opcoes_assist:
+        # Criar novo assistente no banco
+        assistant_id = create_assistant(
+            name=st.session_state.novo_nome,
+            system_message="Você é um assistente prestativo, criativo e honesto.",
+            model="GPT-4",
+            temperature=1.0,
+            top_p=1.0,
+            max_tokens=2000
+        )
         st.session_state.opcoes_assist.append(st.session_state.novo_nome)
         st.session_state.selecao_atual = st.session_state.novo_nome
+        st.session_state.id_atual = assistant_id
 
 def atualizar_nome_existente():
     if st.session_state.nome_editado and st.session_state.nome_editado != assist:
+        # Atualizar o nome no banco de dados
+        update_assistant(
+            assistant_id=st.session_state.id_atual,
+            name=st.session_state.nome_editado,
+            system_message=st.session_state.current_system_msg,
+            model=st.session_state.current_model,
+            temperature=st.session_state.current_temperature,
+            top_p=st.session_state.current_top_p,
+            max_tokens=st.session_state.current_max_tokens
+        )
+        
+        # Atualizar o nome na interface
         idx = st.session_state.opcoes_assist.index(assist)
         st.session_state.opcoes_assist[idx] = st.session_state.nome_editado
         st.session_state.selecao_atual = st.session_state.nome_editado
+        
+        # Atualizar o mapeamento de nomes para IDs
+        st.session_state.assistants_map[st.session_state.nome_editado] = st.session_state.id_atual
+        if assist in st.session_state.assistants_map:
+            del st.session_state.assistants_map[assist]
 
 # Estilo CSS personalizado
 css = """<style>
@@ -101,6 +165,169 @@ with col_menu:
     opcoes_display = st.session_state.opcoes_assist + ["Adicionar novo assistente"]
     assist = st.selectbox("Selecione o assistente", opcoes_display, index=opcoes_display.index(st.session_state.selecao_atual))
 
+    # Atualizar o ID atual e carregar configurações quando um assistente é selecionado
+    if assist == "Adicionar novo assistente":
+        # Resetar para valores padrão
+        st.session_state.current_system_msg = "Você é um assistente prestativo, criativo e honesto."
+        st.session_state.current_model = "GPT-4"
+        st.session_state.current_temperature = 1.0
+        st.session_state.current_top_p = 1.0
+        st.session_state.current_max_tokens = 2000
+        
+        # Atualizar valores dos widgets
+        st.session_state.sistema_msg = "Você é um assistente prestativo, criativo e honesto."
+        st.session_state.modelo = "GPT-4"
+        st.session_state.temperatura = 1.0
+        st.session_state.top_p = 1.0
+        st.session_state.tokens_max = 2000
+    elif assist != "Adicionar novo assistente":
+        if assist != "Padrão":
+            # Atualizar ID atual
+            st.session_state.id_atual = st.session_state.assistants_map.get(assist, 1)
+            st.session_state.selecao_atual = assist
+            
+            # Carregar configurações do banco
+            assistant_data = get_assistant(st.session_state.id_atual)
+            if assistant_data:
+                # Atualizar valores atuais
+                st.session_state.current_system_msg = assistant_data["system_message"]
+                st.session_state.current_model = assistant_data["model"]
+                st.session_state.current_temperature = float(assistant_data["temperature"])
+                st.session_state.current_top_p = float(assistant_data["top_p"])
+                st.session_state.current_max_tokens = int(assistant_data["max_tokens"])
+                
+                # Atualizar valores dos widgets
+                st.session_state.sistema_msg = assistant_data["system_message"]
+                st.session_state.modelo = assistant_data["model"]
+                st.session_state.temperatura = float(assistant_data["temperature"])
+                st.session_state.top_p = float(assistant_data["top_p"])
+                st.session_state.tokens_max = int(assistant_data["max_tokens"])
+        else:
+            # Configurações padrão
+            st.session_state.id_atual = 1
+            st.session_state.selecao_atual = "Padrão"
+            
+            # Atualizar valores atuais
+            st.session_state.current_system_msg = "Você é um assistente prestativo, criativo e honesto."
+            st.session_state.current_model = "GPT-4"
+            st.session_state.current_temperature = 1.0
+            st.session_state.current_top_p = 1.0
+            st.session_state.current_max_tokens = 2000
+            
+            # Atualizar valores dos widgets
+            st.session_state.sistema_msg = "Você é um assistente prestativo, criativo e honesto."
+            st.session_state.modelo = "GPT-4"
+            st.session_state.temperatura = 1.0
+            st.session_state.top_p = 1.0
+            st.session_state.tokens_max = 2000
+
+    # Interface de edição do nome
+    st.subheader("Nome")
+    if assist == "Adicionar novo assistente":
+        novo_nome = st.text_input("Nome do assistente", key="novo_nome", on_change=atualizar_nome)
+    else:
+        nome_editado = st.text_input("Nome do assistente", value=assist, key="nome_editado", on_change=atualizar_nome_existente)
+
+    # Mostrar campos de configuração sempre
+    def on_system_msg_change():
+        if assist != "Padrão" and assist != "Adicionar novo assistente":
+            update_assistant(
+                assistant_id=st.session_state.id_atual,
+                name=assist,
+                system_message=st.session_state.sistema_msg,
+                model=st.session_state.current_model,
+                temperature=st.session_state.current_temperature,
+                top_p=st.session_state.current_top_p,
+                max_tokens=st.session_state.current_max_tokens
+            )
+            st.session_state.current_system_msg = st.session_state.sistema_msg
+
+    def on_model_change():
+        if assist != "Padrão" and assist != "Adicionar novo assistente":
+            update_assistant(
+                assistant_id=st.session_state.id_atual,
+                name=assist,
+                system_message=st.session_state.current_system_msg,
+                model=st.session_state.modelo,
+                temperature=st.session_state.current_temperature,
+                top_p=st.session_state.current_top_p,
+                max_tokens=st.session_state.current_max_tokens
+            )
+            st.session_state.current_model = st.session_state.modelo
+
+    def on_temperature_change():
+        if assist != "Padrão" and assist != "Adicionar novo assistente":
+            update_assistant(
+                assistant_id=st.session_state.id_atual,
+                name=assist,
+                system_message=st.session_state.current_system_msg,
+                model=st.session_state.current_model,
+                temperature=st.session_state.temperatura,
+                top_p=st.session_state.current_top_p,
+                max_tokens=st.session_state.current_max_tokens
+            )
+            st.session_state.current_temperature = st.session_state.temperatura
+
+    def on_top_p_change():
+        if assist != "Padrão" and assist != "Adicionar novo assistente":
+            update_assistant(
+                assistant_id=st.session_state.id_atual,
+                name=assist,
+                system_message=st.session_state.current_system_msg,
+                model=st.session_state.current_model,
+                temperature=st.session_state.current_temperature,
+                top_p=st.session_state.top_p,
+                max_tokens=st.session_state.current_max_tokens
+            )
+            st.session_state.current_top_p = st.session_state.top_p
+
+    def on_max_tokens_change():
+        if assist != "Padrão" and assist != "Adicionar novo assistente":
+            update_assistant(
+                assistant_id=st.session_state.id_atual,
+                name=assist,
+                system_message=st.session_state.current_system_msg,
+                model=st.session_state.current_model,
+                temperature=st.session_state.current_temperature,
+                top_p=st.session_state.current_top_p,
+                max_tokens=st.session_state.tokens_max
+            )
+            st.session_state.current_max_tokens = st.session_state.tokens_max
+
+    # Atualizar os valores temporários quando o assistente muda
+    if st.session_state.selecao_atual != assist:
+        st.session_state.sistema_msg = st.session_state.current_system_msg
+        st.session_state.modelo = st.session_state.current_model
+        st.session_state.temperatura = st.session_state.current_temperature
+        st.session_state.top_p = st.session_state.current_top_p
+        st.session_state.tokens_max = st.session_state.current_max_tokens
+
+    st.text_area("Mensagem do sistema", 
+                key="sistema_msg",
+                on_change=on_system_msg_change)
+    
+    st.selectbox("Selecione o modelo", 
+                ["GPT-4", "GPT-3.5", "GPT-3"],
+                key="modelo",
+                on_change=on_model_change)
+    
+    st.slider("Temperatura", 
+              0.0, 2.0,
+              step=0.01,
+              key="temperatura",
+              on_change=on_temperature_change)
+    
+    st.slider("Top P",
+              0.0, 1.0,
+              step=0.01,
+              key="top_p",
+              on_change=on_top_p_change)
+    
+    st.slider("Tokens máximos",
+              1, 4000,
+              key="tokens_max",
+              on_change=on_max_tokens_change)
+
     # Interface de exclusão do assistente
     if assist != "Adicionar novo assistente" and assist != "Padrão":
         deletar_key = f"deletar_{assist}"
@@ -112,6 +339,7 @@ with col_menu:
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Sim", key=f"sim_{assist}"):
+                    delete_assistant(st.session_state.id_atual)
                     st.session_state.opcoes_assist.remove(assist)
                     st.session_state.selecao_atual = "Padrão"
                     st.session_state.confirmar_delecao = False
@@ -121,29 +349,10 @@ with col_menu:
                     st.session_state.confirmar_delecao = False
                     st.rerun()
 
-    # Interface de edição do nome
-    st.subheader("Nome")
-    if assist == "Adicionar novo assistente":
-        novo_nome = st.text_input("Nome do assistente", key="novo_nome", on_change=atualizar_nome)
-    else:
-        nome_editado = st.text_input("Nome do assistente", value=assist, key="nome_editado", on_change=atualizar_nome_existente)
-
-    # Configurações do assistente
-    st.subheader("Sistema")
-    sistema_msg = st.text_area("Mensagem do sistema", "Você é um assistente prestativo, criativo e honesto.")
-
-    st.subheader("Modelo")
-    modelo = st.selectbox("Selecione o modelo", ["GPT-4", "GPT-3.5", "GPT-3"])
-    
-    st.subheader("Parâmetros")
-    temperatura = st.slider("Temperatura", 0.0, 2.0, 1.0, 0.01)
-    top_p = st.slider("Top P", 0.0, 1.0, 1.0, 0.01)
-    tokens_max = st.slider("Tokens máximos", 1, 4000, 2000)
-
 # Coluna principal
 with col_principal:
     # Cabeçalho
-    col_titulo, col_limpar, col_upload, col_botoes = st.columns([4, 1, 1, 1])
+    col_titulo, col_limpar, col_upload, col_remove, col_botoes = st.columns([4, 1, 1, 1, 1])
     
     with col_titulo:
         st.title("Playground")
@@ -164,6 +373,9 @@ with col_principal:
             label_visibility="collapsed"
         )
 
+    with col_remove:
+        remove_file = st.button("Remover arquivos", key="remover_arquivo")
+      
     with col_botoes:
         if "mostrar_logs" not in st.session_state:
             st.session_state.mostrar_logs = False
@@ -207,6 +419,11 @@ with col_principal:
         if file_extension == 'txt':
             try:
                 file_content = uploaded_file.read().decode('utf-8')
+                save_file(
+                    agent_id=st.session_state.id_atual,
+                    file_name=uploaded_file.name,
+                    file_data=file_content.encode('utf-8')
+                )
             except UnicodeDecodeError:
                 file_content = "Please provide utf-8 encoded text."
         else:
@@ -227,15 +444,24 @@ with col_principal:
         st.session_state["uploaded_file_counter"] += 1
         st.rerun()
 
+    if remove_file:
+        delete_file(st.session_state.id_atual)
+        response = f"Deleted files from agent {st.session_state.id_atual}"
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": response,
+            "timestamp": time.time()
+        })
+        st.rerun()
     # Informações de status
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown("**Tokens usados:** 0/2000")
+        st.markdown(f"**Tokens usados:** 0/{st.session_state.current_max_tokens}")
     with col2:
         st.markdown("**Tempo de resposta:** 2s")
     with col3:
-        st.markdown("**Modelo:** " + modelo)
+        st.markdown("**Modelo:** " + st.session_state.current_model)
 
 # Coluna de logs
 if st.session_state.mostrar_logs:
@@ -244,3 +470,11 @@ if st.session_state.mostrar_logs:
         st.write("Aqui você pode ver os logs do sistema")
         st.write("Histórico de interações")
         st.write("Estatísticas de uso")
+
+# Carregar assistentes ao iniciar
+if 'assistants_loaded' not in st.session_state:
+    assistants = get_all_assistants()
+    st.session_state.opcoes_assist = ["Padrão"] + [a["name"] for a in assistants]
+    # Criar mapeamento de nome para ID
+    st.session_state.assistants_map = {a["name"]: a["id"] for a in assistants}
+    st.session_state.assistants_loaded = True

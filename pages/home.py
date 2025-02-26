@@ -5,7 +5,7 @@ from streamlit_chat import message
 from services.file_storage import save_file, delete_file
 
 # Configuração inicial da página
-st.set_page_config(page_title="Playground", layout="wide")
+st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
 
 # Inicialização das variáveis de estado
 if 'mostrar_logs' not in st.session_state:

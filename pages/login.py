@@ -25,7 +25,7 @@ authenticator.login()
 
 # show content that requires login
 if st.session_state["connected"]:
-    st.write(f"welcome! {st.session_state['user_info']}")
+    st.write(f"welcome! {st.session_state['user_info'].get('email')}")
     if st.button("Log out"):
         authenticator.logout()
 

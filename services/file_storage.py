@@ -26,11 +26,11 @@ def conectar():
     return psycopg2.connect(**DB_CONFIG)
 
 # Função para salvar arquivo no banco de dados e retornar o id do arquivo
-def save_file(file_name, file_data):
+def save_file(agent_id, file_name, file_data):
     conn = conectar()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO files (file_name, file_data) VALUES (%s, %s)", 
-                   (file_name, psycopg2.Binary(file_data)))
+    cursor.execute("INSERT INTO files (agent_id, file_name, file_data) VALUES (%s, %s, %s)", 
+                   (agent_id, file_name, psycopg2.Binary(file_data)))
     file_id = cursor.fetchone()[0]
     conn.commit()
     cursor.close()
@@ -40,14 +40,14 @@ def save_file(file_name, file_data):
 
 
 # Função para baixar arquivo
-def get_file(file_id):
+def get_file(agent_id):
     conn = conectar()
     cursor = conn.cursor()
-    cursor.execute("SELECT file_name, file_data FROM files WHERE id = %s", (file_id,))
-    file = cursor.fetchone()
+    cursor.execute("SELECT id, file_name, file_data FROM files WHERE agent_id = %s", (agent_id,))
+    files = cursor.fetchall()
     cursor.close()
     conn.close()
-    return file
+    return files
 
 # Função para excluir arquivo
 def delete_file(file_id):

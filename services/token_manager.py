@@ -4,6 +4,8 @@ from jwt import ExpiredSignatureError
 import streamlit as st
 import extra_streamlit_components as stx
 
+from services.user_register import insert_user
+
 
 class AuthTokenManager:
   def __init__(
@@ -30,6 +32,7 @@ class AuthTokenManager:
       datetime.now() + timedelta(days=self.token_duration_days)
     ).timestamp()
     token = self._encode_token(email, oauth_id, exp_date)
+    insert_user(oauth_id, email)
     self.cookie_manager.set(
       self.cookie_name,
       token,

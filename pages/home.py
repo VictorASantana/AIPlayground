@@ -2,9 +2,10 @@ import streamlit as st
 import time
 import random
 from streamlit_chat import message
+from services.file_storage import save_file, delete_file
 
 # Configuração inicial da página
-st.set_page_config(page_title="Playground", layout="wide")
+st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
 
 # Inicialização das variáveis de estado
 if 'mostrar_logs' not in st.session_state:
@@ -13,15 +14,22 @@ if 'opcoes_assist' not in st.session_state:
     st.session_state.opcoes_assist = ["Padrão"]
 if 'selecao_atual' not in st.session_state:
     st.session_state.selecao_atual = "Padrão"
+if 'id_atual' not in st.session_state:
+    st.session_state.id_atual = 1
 if 'confirmar_delecao' not in st.session_state:
     st.session_state.confirmar_delecao = False
-
+if 'ids' not in st.session_state:
+    st.session_state.ids = []
+if 'confirmar_delecao' not in st.session_state:
+    st.session_state.confirmar_delecao = False
 
 # Funções auxiliares
 def atualizar_nome():
     if st.session_state.novo_nome and st.session_state.novo_nome not in st.session_state.opcoes_assist:
         st.session_state.opcoes_assist.append(st.session_state.novo_nome)
         st.session_state.selecao_atual = st.session_state.novo_nome
+        st.session_state.id_atual = random.randint(100, 1000)
+        st.session_state.ids.append(st.session_state.id_atual)
 
 def atualizar_nome_existente():
     if st.session_state.nome_editado and st.session_state.nome_editado != assist:
@@ -143,7 +151,7 @@ with col_menu:
 # Coluna principal
 with col_principal:
     # Cabeçalho
-    col_titulo, col_limpar, col_upload, col_botoes = st.columns([4, 1, 1, 1])
+    col_titulo, col_limpar, col_upload, col_remove, col_botoes = st.columns([4, 1, 1, 1, 1])
     
     with col_titulo:
         st.title("Playground")
@@ -164,6 +172,9 @@ with col_principal:
             label_visibility="collapsed"
         )
 
+    with col_remove:
+        remove_file = st.button("Remover arquivos", key="remover_arquivo")
+      
     with col_botoes:
         if "mostrar_logs" not in st.session_state:
             st.session_state.mostrar_logs = False
@@ -207,6 +218,11 @@ with col_principal:
         if file_extension == 'txt':
             try:
                 file_content = uploaded_file.read().decode('utf-8')
+                save_file(
+                    agent_id=st.session_state.id_atual,
+                    file_name=uploaded_file.name,
+                    file_data=file_content.encode('utf-8')
+                )
             except UnicodeDecodeError:
                 file_content = "Please provide utf-8 encoded text."
         else:
@@ -227,6 +243,15 @@ with col_principal:
         st.session_state["uploaded_file_counter"] += 1
         st.rerun()
 
+    if remove_file:
+        delete_file(st.session_state.id_atual)
+        response = f"Deleted files from agent {st.session_state.id_atual}"
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": response,
+            "timestamp": time.time()
+        })
+        st.rerun()
     # Informações de status
     st.markdown("---")
     col1, col2, col3 = st.columns(3)

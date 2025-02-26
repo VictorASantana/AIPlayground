@@ -5,8 +5,8 @@ import psycopg2
 """
 CREATE TABLE files (
     id SERIAL PRIMARY KEY,
-    nome VARCHAR(255) NOT NULL,
-    dados BYTEA NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_data BYTEA NOT NULL,
     data_upload TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

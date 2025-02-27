@@ -1,33 +1,34 @@
 import psycopg2
 
+from services.database_connection import init_connection, table_exists
+
 #Criar tabela files
-"""
-CREATE TABLE files (
-    id SERIAL PRIMARY KEY,
-    file_name VARCHAR(255) NOT NULL,
-    file_data BYTEA NOT NULL,
-    data_upload TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+def create_files_table():
+    if not table_exists("files"):
+        conn = init_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE files (
+            id SERIAL PRIMARY KEY,
+            agent_id INT REFERENCES assistants(id),
+            file_name VARCHAR(255) NOT NULL,
+            file_data BYTEA NOT NULL,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+            """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Tabela 'files' criada com sucesso.")
 
-"""
-
-# Configurações do banco de dados PostgreSQL
-DB_CONFIG = {
-    "dbname": "PlaygroundAI",
-    "user": "postgres",
-    "password": "ASPIRE",
-    "host": "localhost",
-    "port": "5432"
-}
-
-# Função para conectar ao banco
-def conectar():
-    return psycopg2.connect(**DB_CONFIG)
 
 # Função para salvar arquivo no banco de dados e retornar o id do arquivo
 def save_file(agent_id, file_name, file_data):
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
+
+    create_files_table()
+
     cursor.execute("INSERT INTO files (agent_id, file_name, file_data) VALUES (%s, %s, %s) RETURNING id", 
                    (agent_id, file_name, psycopg2.Binary(file_data)))
     file_id = cursor.fetchone()[0]
@@ -40,7 +41,7 @@ def save_file(agent_id, file_name, file_data):
 
 # Função para baixar arquivo
 def get_file(agent_id):
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, file_name, file_data FROM files WHERE agent_id = %s", (agent_id,))
     files = cursor.fetchall()
@@ -50,7 +51,7 @@ def get_file(agent_id):
 
 # Função para excluir arquivo
 def delete_file(file_id):
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM files WHERE agent_id = %s", (file_id,))
     conn.commit()

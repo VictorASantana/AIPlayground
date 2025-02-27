@@ -1,5 +1,6 @@
 import psycopg2
 from typing import Dict, Any
+from services.database_connection import init_connection, table_exists
 
 # Configurações do banco de dados PostgreSQL (usando as mesmas do file_storage)
 DB_CONFIG = {
@@ -28,6 +29,30 @@ CREATE TABLE assistants (
 def conectar():
     return psycopg2.connect(**DB_CONFIG)
 
+def create_assistants_table():
+    if not table_exists("assistants"):
+        conn = conectar()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                CREATE TABLE assistants (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    system_message TEXT,
+                    model VARCHAR(50),
+                    temperature FLOAT DEFAULT 1.0,
+                    top_p FLOAT DEFAULT 1.0,
+                    max_tokens INTEGER DEFAULT 2000,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
+            print("Table 'assistants' created successfully.")
+        finally:
+            cursor.close()
+            conn.close()
+
 def create_assistant(
     name: str,
     system_message: str,
@@ -37,6 +62,7 @@ def create_assistant(
     max_tokens: int = 2000
 ) -> int:
     """Cria um novo assistente e retorna seu ID"""
+    create_assistants_table()  # Ensure table exists
     conn = conectar()
     cursor = conn.cursor()
     try:
@@ -79,6 +105,7 @@ def get_assistant(assistant_id: int) -> Dict[str, Any]:
 
 def get_all_assistants() -> list:
     """Recupera todos os assistentes"""
+    create_assistants_table()  # Ensure table exists
     conn = conectar()
     cursor = conn.cursor()
     try:

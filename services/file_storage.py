@@ -1,22 +1,34 @@
 import psycopg2
 
-from services.database_connection import init_connection
+from services.database_connection import init_connection, table_exists
 
 #Criar tabela files
-"""
-CREATE TABLE files (
-    id SERIAL PRIMARY KEY,
-    file_name VARCHAR(255) NOT NULL,
-    file_data BYTEA NOT NULL,
-    data_upload TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+def create_files_table():
+    if not table_exists("files"):
+        conn = init_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE files (
+            id SERIAL PRIMARY KEY,
+            agent_id INT REFERENCES assistants(id),
+            file_name VARCHAR(255) NOT NULL,
+            file_data BYTEA NOT NULL,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+            """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Tabela 'files' criada com sucesso.")
 
-"""
 
 # Função para salvar arquivo no banco de dados e retornar o id do arquivo
 def save_file(agent_id, file_name, file_data):
     conn = init_connection()
     cursor = conn.cursor()
+
+    create_files_table()
+
     cursor.execute("INSERT INTO files (agent_id, file_name, file_data) VALUES (%s, %s, %s) RETURNING id", 
                    (agent_id, file_name, psycopg2.Binary(file_data)))
     file_id = cursor.fetchone()[0]

@@ -6,6 +6,9 @@ from services.file_storage import save_file, delete_file
 from services.assistant_storage import create_assistant, get_assistant, get_all_assistants, update_assistant, delete_assistant
 import openai
 
+from services.text_processing import retrieve_information, store_in_faiss
+from utils.file_processing import extract_text_from_pdf, extract_text_from_txt
+
 # Configuração inicial da página
 st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
 
@@ -27,6 +30,9 @@ if 'confirmar_delecao' not in st.session_state:
     st.session_state.confirmar_delecao = False
 if 'assistants_map' not in st.session_state:
     st.session_state.assistants_map = {}
+
+if 'file_content' not in st.session_state:
+    st.session_state.file_content = ''
 
 # Inicializar variáveis de configuração
 if 'current_model' not in st.session_state:
@@ -71,8 +77,7 @@ def atualizar_nome():
             model="chatgpt-4o-latest",
             temperature=1.0,
             top_p=1.0,
-            max_tokens=2000, 
-            user_id=st.session_state.user_info.get('id')
+            max_tokens=2000
         )
         st.session_state.opcoes_assist.append(st.session_state.novo_nome)
         st.session_state.selecao_atual = st.session_state.novo_nome
@@ -466,6 +471,10 @@ with col_principal:
     # Input do usuário usando callback
     def on_input_change():
         user_input = st.session_state.user_input
+        query = st.session_state.user_input
+        if st.session_state.file_content:
+            context = retrieve_information(user_input, st.session_state.file_content)
+            user_input = f"Use as informações a seguir para responder:\n{context}\n\nPergunta: {user_input}"
         if user_input:
             # Adicionar mensagem do usuário ao histórico
             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -486,6 +495,8 @@ with col_principal:
                 assistant_response = response.choices[0].message.content
 
             # Adicionar resposta ao histórico
+            st.session_state.messages.pop()
+            st.session_state.messages.append({"role": "user", "content": query})
             st.session_state.messages.append({"role": "assistant", "content": assistant_response})
             
             # Limpar o input
@@ -501,7 +512,7 @@ with col_principal:
         
         if file_extension == 'txt':
             try:
-                file_content = uploaded_file.read().decode('utf-8')
+                file_content = extract_text_from_txt(uploaded_file)
                 save_file(
                     agent_id=st.session_state.id_atual,
                     file_name=uploaded_file.name,
@@ -509,19 +520,17 @@ with col_principal:
                 )
             except UnicodeDecodeError:
                 file_content = "Please provide utf-8 encoded text."
-        else:
-            file_content = f"File '{uploaded_file.name}' uploaded successfully. Binary content not displayed."
-        
-        end_time = time.time()
-        
-        response = f"Received file: {uploaded_file.name}\n\nContent:\n{file_content}"
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response,
-            "timestamp": time.time(),
-            "tokens": len(str(file_content).split()),
-            "response_time": end_time - start_time
-        })
+        elif file_extension == 'pdf':
+            file_content = extract_text_from_pdf(uploaded_file)
+            save_file(
+                agent_id=st.session_state.id_atual,
+                file_name=uploaded_file.name,
+                file_data=file_content.encode('utf-8')
+            )
+
+        vectorstore = store_in_faiss(file_content)
+        st.success("Arquivo processado e indexado")
+        st.session_state.file_content = vectorstore
         
         # Incrementar contador do file uploader para resetar
         st.session_state["uploaded_file_counter"] += 1
@@ -535,6 +544,7 @@ with col_principal:
             "content": response,
             "timestamp": time.time()
         })
+        st.session_state["file_content"] = ''
         st.rerun()
     # Informações de status
     st.markdown("---")

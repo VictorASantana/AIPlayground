@@ -47,8 +47,7 @@ def create_assistant(
     model: str,
     temperature: float = 1.0,
     top_p: float = 1.0,
-    max_tokens: int = 2000, 
-    user_id: int = st.session_state.user_info.get('id')
+    max_tokens: int = 2000
 ) -> int:
     """Cria um novo assistente e retorna seu ID"""
     create_assistants_table()  # Ensure table exists
@@ -56,10 +55,10 @@ def create_assistant(
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO assistants (name, system_message, model, temperature, top_p, max_tokens, user_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO assistants (name, system_message, model, temperature, top_p, max_tokens)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (name, system_message, model, temperature, top_p, max_tokens, user_id))
+        """, (name, system_message, model, temperature, top_p, max_tokens))
         assistant_id = cursor.fetchone()[0]
         conn.commit()
         print(f"Assistant created with ID: {assistant_id}")

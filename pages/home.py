@@ -23,10 +23,11 @@ if 'selecao_atual' not in st.session_state:
     st.session_state.selecao_atual = "Padrão"
 if 'id_atual' not in st.session_state:
     st.session_state.id_atual = 1
-if 'confirmar_delecao' not in st.session_state:
-    st.session_state.confirmar_delecao = False
 if 'ids' not in st.session_state:
     st.session_state.ids = []
+
+if 'confirmar_delecao' not in st.session_state:
+    st.session_state.confirmar_delecao = False
 if 'assistants_map' not in st.session_state:
     st.session_state.assistants_map = {}
 
@@ -68,7 +69,11 @@ def atualizar_nome():
         )
         st.session_state.opcoes_assist.append(st.session_state.novo_nome)
         st.session_state.selecao_atual = st.session_state.novo_nome
+
         st.session_state.id_atual = assistant_id
+        #st.session_state.id_atual = random.randint(100, 1000)
+        st.session_state.ids.append(st.session_state.id_atual)
+
 
 def atualizar_nome_existente():
     if st.session_state.nome_editado and st.session_state.nome_editado != assist:
@@ -146,10 +151,26 @@ css = """<style>
         float: right;
         padding-top: 0;
     }
-
+    /* Estilo para o botão de logout */
+    div[data-testid="column"]:last-child {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
+    div[data-testid="column"]:last-child button {
+        width: auto;
+    }
     </style>
 """
 st.markdown(css, unsafe_allow_html=True)
+
+# Header with email and logout
+display_email, _, logout_button = st.columns([6, 3, 1])
+with display_email:
+    st.title(f"Bem-vindo, {st.session_state.user_info.get('email')}")
+with logout_button:
+    if st.button("Voltar", use_container_width=True):
+        st.switch_page("main.py")
 
 # Definição do layout principal
 if st.session_state.mostrar_logs:
@@ -355,7 +376,7 @@ with col_principal:
     col_titulo, col_limpar, col_upload, col_remove, col_botoes = st.columns([4, 1, 1, 1, 1])
     
     with col_titulo:
-        st.title("Playground")
+        st.title(f"Playground")
 
     with col_limpar:
         if st.button("Limpar thread", key="limpar_thread"):

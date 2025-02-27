@@ -469,7 +469,8 @@ with col_principal:
             # Adicionar mensagem do usuário ao histórico
             st.session_state.messages.append({"role": "user", "content": user_input})
             
-            # Criar um placeholder para a resposta
+            # Criar um placeholder para a resposta e medir o tempo
+            start_time = time.time()
             with st.spinner('Gerando resposta...'):
                 response = client.chat.completions.create(
                     model=st.session_state["openai_model"],
@@ -483,13 +484,33 @@ with col_principal:
                     max_tokens=st.session_state["openai_max_tokens"]
                 )
                 assistant_response = response.choices[0].message.content
+                response_time = time.time() - start_time
+                
+                # Capturar informações de uso de tokens
+                prompt_tokens = response.usage.prompt_tokens
+                completion_tokens = response.usage.completion_tokens
+                total_tokens = response.usage.total_tokens
 
-            # Adicionar resposta ao histórico
-            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+                # Atualizar o contador de tokens na session state
+                if 'total_tokens' not in st.session_state:
+                    st.session_state.total_tokens = 0
+                st.session_state.total_tokens = total_tokens
+
+            # Adicionar resposta ao histórico com informações de tokens
+            st.session_state.messages.append({
+                "role": "assistant", 
+                "content": assistant_response,
+                "response_time": response_time,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens
+            })
+            
+            # Atualizar o tempo de resposta mais recente
+            st.session_state.last_response_time = response_time
             
             # Limpar o input
             st.session_state.user_input = ""
-            #st.rerun()
 
     st.text_input("Digite sua mensagem:", key="user_input", on_change=on_input_change)
 
@@ -539,9 +560,15 @@ with col_principal:
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(f"**Tokens usados:** 0/{st.session_state.current_max_tokens}")
+        if 'total_tokens' in st.session_state:
+            st.markdown(f"**Tokens usados:** {st.session_state.total_tokens}/{st.session_state.current_max_tokens}")
+        else:
+            st.markdown(f"**Tokens usados:** 0/{st.session_state.current_max_tokens}")
     with col2:
-        st.markdown("**Tempo de resposta:** 2s")
+        if 'last_response_time' in st.session_state:
+            st.markdown(f"**Tempo de resposta:** {st.session_state.last_response_time:.2f}s")
+        else:
+            st.markdown("**Tempo de resposta:** -")
     with col3:
         st.markdown("**Modelo:** " + st.session_state.current_model)
 

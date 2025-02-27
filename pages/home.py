@@ -4,7 +4,7 @@ import random
 from streamlit_chat import message
 from services.file_storage import save_file, delete_file
 from services.assistant_storage import create_assistant, get_assistant, get_all_assistants, update_assistant, delete_assistant
-
+import openai
 
 # Configuração inicial da página
 st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
@@ -49,6 +49,10 @@ if 'top_p' not in st.session_state:
     st.session_state.top_p = st.session_state.current_top_p
 if 'tokens_max' not in st.session_state:
     st.session_state.tokens_max = st.session_state.current_max_tokens
+
+if 'openai_model' not in st.session_state:
+    st.session_state.openai_model = "gpt-4o-mini"
+
 
 # Funções auxiliares
 def atualizar_nome():
@@ -411,14 +415,24 @@ with col_principal:
             message(msg["content"], is_user=(msg["role"] == "user"), key=str(i))
 
     # Input do usuário usando callback
+    client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     def on_input_change():
         user_input = st.session_state.user_input
         if user_input:
             # Adicionar mensagem do usuário ao histórico
             st.session_state.messages.append({"role": "user", "content": user_input})
-            
-            # Gerar resposta
-            response = f"Echo: {user_input}"
+            stream = client.chat.completions.create(
+                    model=st.session_state["openai_model"],
+                    messages=[
+                        {"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages
+                    ],
+                    stream=True,
+                    temperature=st.session_state.current_temperature,
+                    top_p=st.session_state.current_top_p,
+                    max_tokens=st.session_state.current_max_tokens
+                )
+            response = st.write_stream(stream)
             st.session_state.messages.append({"role": "assistant", "content": response})
             
             # Limpar o input

@@ -9,6 +9,8 @@ import openai
 # Configuração inicial da página
 st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
 
+client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
 # Inicialização das variáveis de estado
 if 'mostrar_logs' not in st.session_state:
     st.session_state.mostrar_logs = False
@@ -28,7 +30,7 @@ if 'assistants_map' not in st.session_state:
 
 # Inicializar variáveis de configuração
 if 'current_model' not in st.session_state:
-    st.session_state.current_model = "gpt-4-0125-preview"
+    st.session_state.current_model = "chatgpt-4o-latest"
 if 'current_temperature' not in st.session_state:
     st.session_state.current_temperature = 1.0
 if 'current_top_p' not in st.session_state:
@@ -51,7 +53,7 @@ if 'tokens_max' not in st.session_state:
     st.session_state.tokens_max = st.session_state.current_max_tokens
 
 if 'openai_model' not in st.session_state:
-    st.session_state.openai_model = "gpt-4-0125-preview"
+    st.session_state.openai_model = "chatgpt-4o-latest"
 if 'openai_temperature' not in st.session_state:
     st.session_state.openai_temperature = 1.0
 if 'openai_top_p' not in st.session_state:
@@ -66,7 +68,7 @@ def atualizar_nome():
         assistant_id = create_assistant(
             name=st.session_state.novo_nome,
             system_message="Você é um assistente prestativo, criativo e honesto.",
-            model="gpt-4-0125-preview",
+            model="chatgpt-4o-latest",
             temperature=1.0,
             top_p=1.0,
             max_tokens=2000
@@ -194,14 +196,14 @@ with col_menu:
     if assist == "Adicionar novo assistente":
         # Resetar para valores padrão
         st.session_state.current_system_msg = "Você é um assistente prestativo, criativo e honesto."
-        st.session_state.current_model = "gpt-4-0125-preview"
+        st.session_state.current_model = "chatgpt-4o-latest"
         st.session_state.current_temperature = 1.0
         st.session_state.current_top_p = 1.0
         st.session_state.current_max_tokens = 2000
         
         # Atualizar valores dos widgets
         st.session_state.sistema_msg = "Você é um assistente prestativo, criativo e honesto."
-        st.session_state.modelo = "gpt-4-0125-preview"
+        st.session_state.modelo = "chatgpt-4o-latest"
         st.session_state.temperatura = 1.0
         st.session_state.top_p = 1.0
         st.session_state.tokens_max = 2000
@@ -234,14 +236,14 @@ with col_menu:
             
             # Atualizar valores atuais
             st.session_state.current_system_msg = "Você é um assistente prestativo, criativo e honesto."
-            st.session_state.current_model = "gpt-4-0125-preview"
+            st.session_state.current_model = "chatgpt-4o-latest"
             st.session_state.current_temperature = 1.0
             st.session_state.current_top_p = 1.0
             st.session_state.current_max_tokens = 2000
             
             # Atualizar valores dos widgets
             st.session_state.sistema_msg = "Você é um assistente prestativo, criativo e honesto."
-            st.session_state.modelo = "gpt-4-0125-preview"
+            st.session_state.modelo = "chatgpt-4o-latest"
             st.session_state.temperatura = 1.0
             st.session_state.top_p = 1.0
             st.session_state.tokens_max = 2000
@@ -332,7 +334,25 @@ with col_menu:
                 on_change=on_system_msg_change)
     
     st.selectbox("Selecione o modelo", 
-                ["gpt-4-0125-preview", "GPT-3.5", "GPT-3"],
+                [
+                    "gpt-4o",
+                    "gpt-4o-2024-08-06",
+                    "chatgpt-4o-latest",
+                    "gpt-4o-mini",
+                    "gpt-4o-mini-2024-07-18",
+                    "o1",
+                    "o1-2024-12-17",
+                    "o1-mini",
+                    "o1-mini-2024-09-12",
+                    "o3-mini",
+                    "o3-mini-2025-01-31",
+                    "o1-preview",
+                    "o1-preview-2024-09-12",
+                    "gpt-4o-realtime-preview",
+                    "gpt-4o-realtime-preview-2024-12-17",
+                    "gpt-4o-mini-realtime-preview",
+                    "gpt-4o-mini-realtime-preview-2024-12-17"
+                ],
                 key="modelo",
                 on_change=on_model_change)
     
@@ -420,24 +440,27 @@ with col_principal:
             message(msg["content"], is_user=(msg["role"] == "user"), key=str(i))
 
     # Input do usuário usando callback
-    client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     def on_input_change():
         user_input = st.session_state.user_input
         if user_input:
             # Adicionar mensagem do usuário ao histórico
             st.session_state.messages.append({"role": "user", "content": user_input})
+            
+            # Criar um placeholder para a resposta
+            with st.spinner('Gerando resposta...'):
+                response = client.chat.completions.create(
+                    model=st.session_state["openai_model"],
+                    messages=[
+                        {"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages
+                    ],
+                    temperature=st.session_state["openai_temperature"],
+                    top_p=st.session_state["openai_top_p"],
+                    max_tokens=st.session_state["openai_max_tokens"]
+                )
+                assistant_response = response.choices[0].message.content
 
-            response = client.chat.completions.create(
-                model=st.session_state["openai_model"],
-                messages=[
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                ],
-                temperature=st.session_state["openai_temperature"],
-                top_p=st.session_state["openai_top_p"],
-                max_tokens=st.session_state["openai_max_tokens"]
-            )
-            assistant_response = response.choices[0].message.content
+            # Adicionar resposta ao histórico
             st.session_state.messages.append({"role": "assistant", "content": assistant_response})
             
             # Limpar o input

@@ -1,5 +1,23 @@
 import streamlit as st
 import time
+import os
+import sys
+from flask import Flask
+from app.routes import routes
+from app.database import engine, Base
+from dotenv import load_dotenv
+from routes.chat import chat_bp
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+Base.metadata.create_all(bind=engine)
+
+app = Flask(__name__)
+app.register_blueprint(routes)
+app.register_blueprint(chat_bp)
 
 # Initialize session state
 if "connected" not in st.session_state:
@@ -19,11 +37,6 @@ st.set_page_config(
 time.sleep(0.1)  # Small delay to ensure page config is applied
 #st.switch_page("pages/login.py")
 
-import os
-import streamlit as st
-from dotenv import load_dotenv
-import sys
-import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from services.auth import Authenticator
@@ -94,3 +107,7 @@ st.markdown("""
 
 # Display centered image
 st.image("images/institutominerva_cover.jpg")
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

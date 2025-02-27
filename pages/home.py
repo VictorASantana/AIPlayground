@@ -71,7 +71,8 @@ def atualizar_nome():
             model="chatgpt-4o-latest",
             temperature=1.0,
             top_p=1.0,
-            max_tokens=2000
+            max_tokens=2000, 
+            user_id=st.session_state.user_info.get('id')
         )
         st.session_state.opcoes_assist.append(st.session_state.novo_nome)
         st.session_state.selecao_atual = st.session_state.novo_nome

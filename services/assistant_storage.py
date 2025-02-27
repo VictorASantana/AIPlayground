@@ -1,15 +1,6 @@
-import psycopg2
+import streamlit as st
 from typing import Dict, Any
 from services.database_connection import init_connection, table_exists
-
-# Configurações do banco de dados PostgreSQL (usando as mesmas do file_storage)
-DB_CONFIG = {
-    "dbname": "PlaygroundAI",
-    "user": "postgres",
-    "password": "ASPIRE",
-    "host": "localhost",
-    "port": "5432"
-}
 
 # SQL para criar a tabela de assistentes
 """
@@ -26,12 +17,9 @@ CREATE TABLE assistants (
 );
 """
 
-def conectar():
-    return psycopg2.connect(**DB_CONFIG)
-
 def create_assistants_table():
     if not table_exists("assistants"):
-        conn = conectar()
+        conn = init_connection()
         cursor = conn.cursor()
         try:
             cursor.execute("""
@@ -59,18 +47,19 @@ def create_assistant(
     model: str,
     temperature: float = 1.0,
     top_p: float = 1.0,
-    max_tokens: int = 2000
+    max_tokens: int = 2000, 
+    user_id: int = st.session_state.user_info.get('id')
 ) -> int:
     """Cria um novo assistente e retorna seu ID"""
     create_assistants_table()  # Ensure table exists
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO assistants (name, system_message, model, temperature, top_p, max_tokens)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO assistants (name, system_message, model, temperature, top_p, max_tokens, user_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (name, system_message, model, temperature, top_p, max_tokens))
+        """, (name, system_message, model, temperature, top_p, max_tokens, user_id))
         assistant_id = cursor.fetchone()[0]
         conn.commit()
         print(f"Assistant created with ID: {assistant_id}")
@@ -81,7 +70,7 @@ def create_assistant(
 
 def get_assistant(assistant_id: int) -> Dict[str, Any]:
     """Recupera as informações de um assistente específico"""
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -106,7 +95,8 @@ def get_assistant(assistant_id: int) -> Dict[str, Any]:
 
 def get_all_assistants() -> list:
     """Recupera todos os assistentes"""
-    conn = conectar()
+    create_assistants_table()  # Ensure table exists
+    conn = init_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -164,7 +154,7 @@ def update_assistant(
     updates.append("updated_at = CURRENT_TIMESTAMP")
     values.append(assistant_id)
 
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     try:
         cursor.execute(f"""
@@ -181,7 +171,7 @@ def update_assistant(
 
 def delete_assistant(assistant_id: int) -> bool:
     """Deleta um assistente"""
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM assistants WHERE id = %s", (assistant_id,))

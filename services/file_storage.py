@@ -1,5 +1,7 @@
 import psycopg2
 
+from services.database_connection import init_connection
+
 #Criar tabela files
 """
 CREATE TABLE files (
@@ -11,22 +13,9 @@ CREATE TABLE files (
 
 """
 
-# Configurações do banco de dados PostgreSQL
-DB_CONFIG = {
-    "dbname": "PlaygroundAI",
-    "user": "postgres",
-    "password": "ASPIRE",
-    "host": "localhost",
-    "port": "5432"
-}
-
-# Função para conectar ao banco
-def conectar():
-    return psycopg2.connect(**DB_CONFIG)
-
 # Função para salvar arquivo no banco de dados e retornar o id do arquivo
 def save_file(agent_id, file_name, file_data):
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     cursor.execute("INSERT INTO files (agent_id, file_name, file_data) VALUES (%s, %s, %s) RETURNING id", 
                    (agent_id, file_name, psycopg2.Binary(file_data)))
@@ -40,7 +29,7 @@ def save_file(agent_id, file_name, file_data):
 
 # Função para baixar arquivo
 def get_file(agent_id):
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, file_name, file_data FROM files WHERE agent_id = %s", (agent_id,))
     files = cursor.fetchall()
@@ -50,7 +39,7 @@ def get_file(agent_id):
 
 # Função para excluir arquivo
 def delete_file(file_id):
-    conn = conectar()
+    conn = init_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM files WHERE agent_id = %s", (file_id,))
     conn.commit()

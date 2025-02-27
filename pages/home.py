@@ -207,6 +207,13 @@ with col_menu:
         st.session_state.temperatura = 1.0
         st.session_state.top_p = 1.0
         st.session_state.tokens_max = 2000
+
+        # Atualizar valores da API OpenAI
+        st.session_state.openai_model = "chatgpt-4o-latest"
+        st.session_state.openai_temperature = 1.0
+        st.session_state.openai_top_p = 1.0
+        st.session_state.openai_max_tokens = 2000
+
     elif assist != "Adicionar novo assistente":
         if assist != "Padrão":
             # Atualizar ID atual
@@ -229,6 +236,12 @@ with col_menu:
                 st.session_state.temperatura = float(assistant_data["temperature"])
                 st.session_state.top_p = float(assistant_data["top_p"])
                 st.session_state.tokens_max = int(assistant_data["max_tokens"])
+
+                # Atualizar valores da API OpenAI
+                st.session_state.openai_model = assistant_data["model"]
+                st.session_state.openai_temperature = float(assistant_data["temperature"])
+                st.session_state.openai_top_p = float(assistant_data["top_p"])
+                st.session_state.openai_max_tokens = int(assistant_data["max_tokens"])
         else:
             # Configurações padrão
             st.session_state.id_atual = 1
@@ -247,6 +260,12 @@ with col_menu:
             st.session_state.temperatura = 1.0
             st.session_state.top_p = 1.0
             st.session_state.tokens_max = 2000
+
+            # Atualizar valores da API OpenAI
+            st.session_state.openai_model = "chatgpt-4o-latest"
+            st.session_state.openai_temperature = 1.0
+            st.session_state.openai_top_p = 1.0
+            st.session_state.openai_max_tokens = 2000
 
     # Interface de edição do nome
     st.subheader("Nome")
@@ -281,6 +300,7 @@ with col_menu:
                 max_tokens=st.session_state.current_max_tokens
             )
             st.session_state.current_model = st.session_state.modelo
+        st.session_state.openai_model = st.session_state.modelo
 
     def on_temperature_change():
         if assist != "Padrão" and assist != "Adicionar novo assistente":
@@ -294,6 +314,7 @@ with col_menu:
                 max_tokens=st.session_state.current_max_tokens
             )
             st.session_state.current_temperature = st.session_state.temperatura
+        st.session_state.openai_temperature = st.session_state.temperatura
 
     def on_top_p_change():
         if assist != "Padrão" and assist != "Adicionar novo assistente":
@@ -307,6 +328,7 @@ with col_menu:
                 max_tokens=st.session_state.current_max_tokens
             )
             st.session_state.current_top_p = st.session_state.top_p
+        st.session_state.openai_top_p = st.session_state.top_p
 
     def on_max_tokens_change():
         if assist != "Padrão" and assist != "Adicionar novo assistente":
@@ -320,6 +342,7 @@ with col_menu:
                 max_tokens=st.session_state.tokens_max
             )
             st.session_state.current_max_tokens = st.session_state.tokens_max
+        st.session_state.openai_max_tokens = st.session_state.tokens_max
 
     # Atualizar os valores temporários quando o assistente muda
     if st.session_state.selecao_atual != assist:
@@ -451,8 +474,9 @@ with col_principal:
                 response = client.chat.completions.create(
                     model=st.session_state["openai_model"],
                     messages=[
-                        {"role": m["role"], "content": m["content"]}
-                        for m in st.session_state.messages
+                        {"role": "system", "content": st.session_state.current_system_msg},
+                        *[{"role": m["role"], "content": m["content"]}
+                          for m in st.session_state.messages]
                     ],
                     temperature=st.session_state["openai_temperature"],
                     top_p=st.session_state["openai_top_p"],

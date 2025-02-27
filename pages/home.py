@@ -3,9 +3,10 @@ import time
 import random
 from streamlit_chat import message
 from services.file_storage import save_file, delete_file
+#from main import authenticator
 
 # Configuração inicial da página
-st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
+#st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
 
 # Inicialização das variáveis de estado
 if 'mostrar_logs' not in st.session_state:
@@ -90,10 +91,26 @@ css = """<style>
         float: right;
         padding-top: 0;
     }
-
+    /* Estilo para o botão de logout */
+    div[data-testid="column"]:last-child {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
+    div[data-testid="column"]:last-child button {
+        width: auto;
+    }
     </style>
 """
 st.markdown(css, unsafe_allow_html=True)
+
+# Header with email and logout
+display_email, _, logout_button = st.columns([6, 3, 1])
+with display_email:
+    st.title(f"Bem-vindo, {st.session_state.user_info.get('email')}")
+with logout_button:
+    if st.button("Voltar", use_container_width=True):
+        st.switch_page("main.py")
 
 # Definição do layout principal
 if st.session_state.mostrar_logs:
@@ -154,7 +171,7 @@ with col_principal:
     col_titulo, col_limpar, col_upload, col_remove, col_botoes = st.columns([4, 1, 1, 1, 1])
     
     with col_titulo:
-        st.title("Playground")
+        st.title(f"Playground")
 
     with col_limpar:
         if st.button("Limpar thread", key="limpar_thread"):

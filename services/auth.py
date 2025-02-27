@@ -24,6 +24,7 @@ class Authenticator:
             token_duration_days=token_duration_days,
         )
         self.cookie_name = cookie_name
+        self.valido = None
 
     def _initialize_flow(self) -> google_auth_oauthlib.flow.Flow:
         flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
@@ -47,7 +48,7 @@ class Authenticator:
     def login(self):
         if not st.session_state["connected"]:
             auth_url = self.get_auth_url()
-            st.link_button("login with google", auth_url)
+            st.markdown(f'<a href="{auth_url}" target="_self" style="display: inline-block; padding: 0.5rem 1rem; font-weight: 400; text-align: center; text-decoration: none; border-radius: 0.25rem; color: rgb(255, 255, 255); background-color: rgb(19, 23, 32); border: 1px solid rgba(250, 250, 250, 0.2); cursor: pointer;">Entre com google</a>', unsafe_allow_html=True)
 
     def check_auth(self):
 
@@ -90,8 +91,10 @@ class Authenticator:
                     "oauth_id": oauth_id,
                     "email": email,
                 }
+                self.valido = True
             else:
                 st.toast(":red[access denied: Unauthorized user]")
+                self.valido = False
             # no rerun
 
     def logout(self):

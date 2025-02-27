@@ -28,7 +28,7 @@ if 'assistants_map' not in st.session_state:
 
 # Inicializar variáveis de configuração
 if 'current_model' not in st.session_state:
-    st.session_state.current_model = "GPT-4"
+    st.session_state.current_model = "gpt-4-0125-preview"
 if 'current_temperature' not in st.session_state:
     st.session_state.current_temperature = 1.0
 if 'current_top_p' not in st.session_state:
@@ -51,8 +51,13 @@ if 'tokens_max' not in st.session_state:
     st.session_state.tokens_max = st.session_state.current_max_tokens
 
 if 'openai_model' not in st.session_state:
-    st.session_state.openai_model = "gpt-4o-mini"
-
+    st.session_state.openai_model = "gpt-4-0125-preview"
+if 'openai_temperature' not in st.session_state:
+    st.session_state.openai_temperature = 1.0
+if 'openai_top_p' not in st.session_state:
+    st.session_state.openai_top_p = 1.0
+if 'openai_max_tokens' not in st.session_state:
+    st.session_state.openai_max_tokens = 2000
 
 # Funções auxiliares
 def atualizar_nome():
@@ -61,7 +66,7 @@ def atualizar_nome():
         assistant_id = create_assistant(
             name=st.session_state.novo_nome,
             system_message="Você é um assistente prestativo, criativo e honesto.",
-            model="GPT-4",
+            model="gpt-4-0125-preview",
             temperature=1.0,
             top_p=1.0,
             max_tokens=2000
@@ -189,14 +194,14 @@ with col_menu:
     if assist == "Adicionar novo assistente":
         # Resetar para valores padrão
         st.session_state.current_system_msg = "Você é um assistente prestativo, criativo e honesto."
-        st.session_state.current_model = "GPT-4"
+        st.session_state.current_model = "gpt-4-0125-preview"
         st.session_state.current_temperature = 1.0
         st.session_state.current_top_p = 1.0
         st.session_state.current_max_tokens = 2000
         
         # Atualizar valores dos widgets
         st.session_state.sistema_msg = "Você é um assistente prestativo, criativo e honesto."
-        st.session_state.modelo = "GPT-4"
+        st.session_state.modelo = "gpt-4-0125-preview"
         st.session_state.temperatura = 1.0
         st.session_state.top_p = 1.0
         st.session_state.tokens_max = 2000
@@ -229,14 +234,14 @@ with col_menu:
             
             # Atualizar valores atuais
             st.session_state.current_system_msg = "Você é um assistente prestativo, criativo e honesto."
-            st.session_state.current_model = "GPT-4"
+            st.session_state.current_model = "gpt-4-0125-preview"
             st.session_state.current_temperature = 1.0
             st.session_state.current_top_p = 1.0
             st.session_state.current_max_tokens = 2000
             
             # Atualizar valores dos widgets
             st.session_state.sistema_msg = "Você é um assistente prestativo, criativo e honesto."
-            st.session_state.modelo = "GPT-4"
+            st.session_state.modelo = "gpt-4-0125-preview"
             st.session_state.temperatura = 1.0
             st.session_state.top_p = 1.0
             st.session_state.tokens_max = 2000
@@ -327,7 +332,7 @@ with col_menu:
                 on_change=on_system_msg_change)
     
     st.selectbox("Selecione o modelo", 
-                ["GPT-4", "GPT-3.5", "GPT-3"],
+                ["gpt-4-0125-preview", "GPT-3.5", "GPT-3"],
                 key="modelo",
                 on_change=on_model_change)
     
@@ -421,19 +426,19 @@ with col_principal:
         if user_input:
             # Adicionar mensagem do usuário ao histórico
             st.session_state.messages.append({"role": "user", "content": user_input})
-            stream = client.chat.completions.create(
-                    model=st.session_state["openai_model"],
-                    messages=[
-                        {"role": m["role"], "content": m["content"]}
-                        for m in st.session_state.messages
-                    ],
-                    stream=True,
-                    temperature=st.session_state.current_temperature,
-                    top_p=st.session_state.current_top_p,
-                    max_tokens=st.session_state.current_max_tokens
-                )
-            response = st.write_stream(stream)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+
+            response = client.chat.completions.create(
+                model=st.session_state["openai_model"],
+                messages=[
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                ],
+                temperature=st.session_state["openai_temperature"],
+                top_p=st.session_state["openai_top_p"],
+                max_tokens=st.session_state["openai_max_tokens"]
+            )
+            assistant_response = response.choices[0].message.content
+            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
             
             # Limpar o input
             st.session_state.user_input = ""

@@ -73,6 +73,7 @@ def create_assistant(
         """, (name, system_message, model, temperature, top_p, max_tokens))
         assistant_id = cursor.fetchone()[0]
         conn.commit()
+        print(f"Assistant created with ID: {assistant_id}")
         return assistant_id
     finally:
         cursor.close()
@@ -105,7 +106,6 @@ def get_assistant(assistant_id: int) -> Dict[str, Any]:
 
 def get_all_assistants() -> list:
     """Recupera todos os assistentes"""
-    create_assistants_table()  # Ensure table exists
     conn = conectar()
     cursor = conn.cursor()
     try:
@@ -173,6 +173,7 @@ def update_assistant(
             WHERE id = %s
         """, values)
         conn.commit()
+        print(f"Assistant updated with ID: {assistant_id}")
         return cursor.rowcount > 0
     finally:
         cursor.close()

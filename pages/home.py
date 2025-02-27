@@ -3,13 +3,8 @@ import time
 import random
 from streamlit_chat import message
 from services.file_storage import save_file, delete_file
-from services.assistant_storage import (
-    create_assistant,
-    get_assistant,
-    get_all_assistants,
-    update_assistant,
-    delete_assistant
-)
+from services.assistant_storage import create_assistant, get_assistant, get_all_assistants, update_assistant, delete_assistant
+
 
 # Configuração inicial da página
 st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")

@@ -10,13 +10,17 @@ from services.text_processing import retrieve_information, store_in_faiss
 from utils.file_processing import extract_text_from_pdf, extract_text_from_txt
 
 # Configuração inicial da página
-st.set_page_config(page_title="Playground", initial_sidebar_state="collapsed", layout="wide")
+st.set_page_config(page_title="Instituto Minerva Playground", initial_sidebar_state="collapsed", layout="wide")
+
+params = st.query_params
+
+if "redirected" not in st.session_state:
+    st.session_state["redirected"] = True
+    st.switch_page("main.py")  # Change to the actual page path
 
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Inicialização das variáveis de estado
-if 'mostrar_logs' not in st.session_state:
-    st.session_state.mostrar_logs = False
 if 'opcoes_assist' not in st.session_state:
     st.session_state.opcoes_assist = ["Padrão"]
 if 'selecao_atual' not in st.session_state:
@@ -124,16 +128,6 @@ css = """<style>
         border-radius: 4px;
         min-height: 200px;
     }
-    /* Removendo os estilos gerais da coluna e aplicando apenas à coluna de logs */
-    [data-testid="stSidebarNav"] {
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-    
-    /* Estilizando a barra de rolagem apenas para a coluna de logs */
-    [data-testid="stSidebarNav"]::-webkit-scrollbar {
-        width: 10px;
-    }
     
     [data-testid="stSidebarNav"]::-webkit-scrollbar-track {
         background: #f1f1f1;
@@ -163,6 +157,22 @@ css = """<style>
         float: right;
         padding-top: 0;
     }
+    /* Estilo para o botão de upload de arquivos */
+    button[data-testid="baseButton-secondary"] {
+        visibility: hidden;
+        position: relative;
+    }
+    button[data-testid="baseButton-secondary"]::after {
+        content: "Anexar arquivo";
+        visibility: visible;
+        position: absolute;
+        left: 0;
+        right: 0;
+    }
+    /* Hide file uploader instructions */
+    [data-testid="stFileDropzoneInstructions"] {
+        display: none;
+    }
     /* Estilo para o botão de logout */
     div[data-testid="column"]:last-child {
         display: flex;
@@ -185,14 +195,18 @@ with logout_button:
         st.switch_page("main.py")
 
 # Definição do layout principal
-if st.session_state.mostrar_logs:
-    col_menu, col_principal, col_logs = st.columns([1.2, 3, 1])
-else:
-    col_menu, col_principal = st.columns([1.2, 4])
+
+col_menu, col_principal = st.columns([1.2, 4])
 
 # Coluna de menu
 with col_menu:
     st.title("Assistente")
+
+    assistants = get_all_assistants()
+    st.session_state.opcoes_assist = ["Padrão"] + [a["name"] for a in assistants]
+    # Criar mapeamento de nome para ID
+    st.session_state.assistants_map = {a["name"]: a["id"] for a in assistants}
+    st.session_state.assistants_loaded = True
     
     # Seleção do assistente
     opcoes_display = st.session_state.opcoes_assist + ["Adicionar novo assistente"]
@@ -368,25 +382,13 @@ with col_menu:
                     "gpt-4o-2024-08-06",
                     "chatgpt-4o-latest",
                     "gpt-4o-mini",
-                    "gpt-4o-mini-2024-07-18",
-                    "o1",
-                    "o1-2024-12-17",
-                    "o1-mini",
-                    "o1-mini-2024-09-12",
-                    "o3-mini",
-                    "o3-mini-2025-01-31",
-                    "o1-preview",
-                    "o1-preview-2024-09-12",
-                    "gpt-4o-realtime-preview",
-                    "gpt-4o-realtime-preview-2024-12-17",
-                    "gpt-4o-mini-realtime-preview",
-                    "gpt-4o-mini-realtime-preview-2024-12-17"
+                    "gpt-4o-mini-2024-07-18"
                 ],
                 key="modelo",
                 on_change=on_model_change)
     
     st.slider("Temperatura", 
-              0.0, 2.0,
+              0.0, 1.5,
               step=0.01,
               key="temperatura",
               on_change=on_temperature_change)
@@ -426,7 +428,7 @@ with col_menu:
 # Coluna principal
 with col_principal:
     # Cabeçalho
-    col_titulo, col_limpar, col_upload, col_remove, col_botoes = st.columns([4, 1, 1, 1, 1])
+    col_titulo, col_limpar, col_upload, col_remove = st.columns([4, 1, 1, 1])
     
     with col_titulo:
         st.title(f"Playground")
@@ -441,7 +443,7 @@ with col_principal:
             st.session_state["uploaded_file_counter"] = 1
 
         uploaded_file = st.file_uploader(
-            "Upload File", 
+            label="Upload a file", 
             type=['txt', 'pdf', 'docx'], 
             key=f"file_uploader_{st.session_state['uploaded_file_counter']}", 
             label_visibility="collapsed"
@@ -450,11 +452,6 @@ with col_principal:
     with col_remove:
         remove_file = st.button("Remover arquivos", key="remover_arquivo")
       
-    with col_botoes:
-        if "mostrar_logs" not in st.session_state:
-            st.session_state.mostrar_logs = False
-        
-        st.button('Logs', key='toggle_logs', on_click=lambda: setattr(st.session_state, 'mostrar_logs', not st.session_state.mostrar_logs))
 
     chat_container = st.container()
 
@@ -481,31 +478,31 @@ with col_principal:
             
             # Criar um placeholder para a resposta e medir o tempo
             start_time = time.time()
-            with st.spinner('Gerando resposta...'):
-                response = client.chat.completions.create(
-                    model=st.session_state["openai_model"],
-                    messages=[
-                        {"role": "system", "content": st.session_state.current_system_msg},
-                        *[{"role": m["role"], "content": m["content"]}
-                          for m in st.session_state.messages]
-                    ],
-                    temperature=st.session_state["openai_temperature"],
-                    top_p=st.session_state["openai_top_p"],
-                    max_tokens=st.session_state["openai_max_tokens"]
-                )
-                assistant_response = response.choices[0].message.content
+            #with st.spinner('Gerando resposta...'):
+            response = client.chat.completions.create(
+                model=st.session_state["openai_model"],
+                messages=[
+                    {"role": "system", "content": st.session_state.current_system_msg},
+                    *[{"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages]
+                ],
+                temperature=st.session_state["openai_temperature"],
+                top_p=st.session_state["openai_top_p"],
+                max_tokens=st.session_state["openai_max_tokens"]
+            )
+            assistant_response = response.choices[0].message.content
 
-                response_time = time.time() - start_time
-                
-                # Capturar informações de uso de tokens
-                prompt_tokens = response.usage.prompt_tokens
-                completion_tokens = response.usage.completion_tokens
-                total_tokens = response.usage.total_tokens
+            response_time = time.time() - start_time
+            
+            # Capturar informações de uso de tokens
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
+            total_tokens = response.usage.total_tokens
 
-                # Atualizar o contador de tokens na session state
-                if 'total_tokens' not in st.session_state:
-                    st.session_state.total_tokens = 0
-                st.session_state.total_tokens = total_tokens
+            # Atualizar o contador de tokens na session state
+            if 'total_tokens' not in st.session_state:
+                st.session_state.total_tokens = 0
+            st.session_state.total_tokens = total_tokens
 
             st.session_state.messages.pop()
             st.session_state.messages.append({"role": "user", "content": query})
@@ -529,6 +526,12 @@ with col_principal:
 
     # Processar o arquivo carregado
     if uploaded_file is not None:
+        st.markdown('''
+            <style>
+                .uploadedFile {display: none}
+            <style>''',
+            unsafe_allow_html=True
+            )
         start_time = time.time()
         file_extension = uploaded_file.name.split('.')[-1].lower()
         
@@ -583,19 +586,3 @@ with col_principal:
             st.markdown("**Tempo de resposta:** -")
     with col3:
         st.markdown("**Modelo:** " + st.session_state.current_model)
-
-# Coluna de logs
-if st.session_state.mostrar_logs:
-    with col_logs:
-        st.title("Logs")
-        st.write("Aqui você pode ver os logs do sistema")
-        st.write("Histórico de interações")
-        st.write("Estatísticas de uso")
-
-# Carregar assistentes ao iniciar
-if 'assistants_loaded' not in st.session_state:
-    assistants = get_all_assistants()
-    st.session_state.opcoes_assist = ["Padrão"] + [a["name"] for a in assistants]
-    # Criar mapeamento de nome para ID
-    st.session_state.assistants_map = {a["name"]: a["id"] for a in assistants}
-    st.session_state.assistants_loaded = True

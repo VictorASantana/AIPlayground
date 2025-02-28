@@ -507,6 +507,8 @@ with col_principal:
                     st.session_state.total_tokens = 0
                 st.session_state.total_tokens = total_tokens
 
+            st.session_state.messages.pop()
+            st.session_state.messages.append({"role": "user", "content": query})
             # Adicionar resposta ao histórico com informações de tokens
             st.session_state.messages.append({
                 "role": "assistant", 
@@ -519,11 +521,6 @@ with col_principal:
             
             # Atualizar o tempo de resposta mais recente
             st.session_state.last_response_time = response_time
-
-            # Adicionar resposta ao histórico
-            st.session_state.messages.pop()
-            st.session_state.messages.append({"role": "user", "content": query})
-            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
             
             # Limpar o input
             st.session_state.user_input = ""

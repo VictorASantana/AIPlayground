@@ -151,6 +151,22 @@ css = """<style>
         float: right;
         padding-top: 0;
     }
+    /* Estilo para o botão de upload de arquivos */
+    button[data-testid="baseButton-secondary"] {
+        visibility: hidden;
+        position: relative;
+    }
+    button[data-testid="baseButton-secondary"]::after {
+        content: "Anexar arquivo";
+        visibility: visible;
+        position: absolute;
+        left: 0;
+        right: 0;
+    }
+    /* Hide file uploader instructions */
+    [data-testid="stFileDropzoneInstructions"] {
+        display: none;
+    }
     /* Estilo para o botão de logout */
     div[data-testid="column"]:last-child {
         display: flex;
@@ -159,9 +175,6 @@ css = """<style>
     }
     div[data-testid="column"]:last-child button {
         width: auto;
-    }
-    .uploadedFile {
-        display: none;
     }
     </style>
 """
@@ -424,7 +437,7 @@ with col_principal:
             st.session_state["uploaded_file_counter"] = 1
 
         uploaded_file = st.file_uploader(
-            "Upload File", 
+            label="Upload a file", 
             type=['txt', 'pdf', 'docx'], 
             key=f"file_uploader_{st.session_state['uploaded_file_counter']}", 
             label_visibility="collapsed"
@@ -459,31 +472,31 @@ with col_principal:
             
             # Criar um placeholder para a resposta e medir o tempo
             start_time = time.time()
-            with st.spinner('Gerando resposta...'):
-                response = client.chat.completions.create(
-                    model=st.session_state["openai_model"],
-                    messages=[
-                        {"role": "system", "content": st.session_state.current_system_msg},
-                        *[{"role": m["role"], "content": m["content"]}
-                          for m in st.session_state.messages]
-                    ],
-                    temperature=st.session_state["openai_temperature"],
-                    top_p=st.session_state["openai_top_p"],
-                    max_tokens=st.session_state["openai_max_tokens"]
-                )
-                assistant_response = response.choices[0].message.content
+            #with st.spinner('Gerando resposta...'):
+            response = client.chat.completions.create(
+                model=st.session_state["openai_model"],
+                messages=[
+                    {"role": "system", "content": st.session_state.current_system_msg},
+                    *[{"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages]
+                ],
+                temperature=st.session_state["openai_temperature"],
+                top_p=st.session_state["openai_top_p"],
+                max_tokens=st.session_state["openai_max_tokens"]
+            )
+            assistant_response = response.choices[0].message.content
 
-                response_time = time.time() - start_time
-                
-                # Capturar informações de uso de tokens
-                prompt_tokens = response.usage.prompt_tokens
-                completion_tokens = response.usage.completion_tokens
-                total_tokens = response.usage.total_tokens
+            response_time = time.time() - start_time
+            
+            # Capturar informações de uso de tokens
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
+            total_tokens = response.usage.total_tokens
 
-                # Atualizar o contador de tokens na session state
-                if 'total_tokens' not in st.session_state:
-                    st.session_state.total_tokens = 0
-                st.session_state.total_tokens = total_tokens
+            # Atualizar o contador de tokens na session state
+            if 'total_tokens' not in st.session_state:
+                st.session_state.total_tokens = 0
+            st.session_state.total_tokens = total_tokens
 
             st.session_state.messages.pop()
             st.session_state.messages.append({"role": "user", "content": query})
@@ -507,6 +520,12 @@ with col_principal:
 
     # Processar o arquivo carregado
     if uploaded_file is not None:
+        st.markdown('''
+            <style>
+                .uploadedFile {display: none}
+            <style>''',
+            unsafe_allow_html=True
+            )
         start_time = time.time()
         file_extension = uploaded_file.name.split('.')[-1].lower()
         

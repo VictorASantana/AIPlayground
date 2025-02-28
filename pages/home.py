@@ -14,9 +14,9 @@ st.set_page_config(page_title="Instituto Minerva Playground", initial_sidebar_st
 
 params = st.query_params
 
-if "page" not in params:
-    params["page"] = "new_page"
-    st.query_params = params
+if "redirected" not in st.session_state:
+    st.session_state["redirected"] = True
+    st.switch_page("main.py")  # Change to the actual page path
 
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
@@ -392,7 +392,7 @@ with col_menu:
                 on_change=on_model_change)
     
     st.slider("Temperatura", 
-              0.0, 1.5,
+              0.0, 2.0,
               step=0.01,
               key="temperatura",
               on_change=on_temperature_change)

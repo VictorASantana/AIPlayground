@@ -50,10 +50,18 @@ def get_file(agent_id):
     return files
 
 # Função para excluir arquivo
-def delete_file(file_id):
+def delete_all_files(agent_id):
     conn = init_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM files WHERE agent_id = %s", (file_id,))
+    cursor.execute("DELETE FROM files WHERE agent_id = %s", (agent_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def delete_file(file_name):
+    conn = init_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM files WHERE file_name = %s", (file_name,))
     conn.commit()
     cursor.close()
     conn.close()

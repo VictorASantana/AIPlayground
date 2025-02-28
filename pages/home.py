@@ -1,8 +1,8 @@
 import streamlit as st
 import time
-import random
+from streamlit_modal import Modal
 from streamlit_chat import message
-from services.file_storage import save_file, delete_file
+from services.file_storage import delete_file, save_file, delete_all_files
 from services.assistant_storage import create_assistant, get_assistant, get_all_assistants, update_assistant, delete_assistant
 import openai
 
@@ -35,8 +35,12 @@ if 'confirmar_delecao' not in st.session_state:
 if 'assistants_map' not in st.session_state:
     st.session_state.assistants_map = {}
 
+if 'uploaded_files' not in st.session_state:
+    st.session_state.uploaded_files = []
 if 'file_content' not in st.session_state:
-    st.session_state.file_content = ''
+    st.session_state.file_content = []
+if 'file_names' not in st.session_state:
+    st.session_state.file_names = []
 
 # Inicializar variáveis de configuração
 if 'current_model' not in st.session_state:
@@ -444,10 +448,15 @@ with col_principal:
 
         uploaded_file = st.file_uploader(
             label="Upload a file", 
-            type=['txt', 'pdf', 'docx'], 
+            type=['txt', 'pdf'], 
             key=f"file_uploader_{st.session_state['uploaded_file_counter']}", 
             label_visibility="collapsed"
-        )
+        ) 
+
+        modal = Modal("Arquivos carregados", key="file_modal", padding=20)
+
+        if st.button("Arquivos Carregados"):
+            modal.open()
 
     with col_remove:
         remove_file = st.button("Remover arquivos", key="remover_arquivo")
@@ -469,9 +478,14 @@ with col_principal:
     def on_input_change():
         user_input = st.session_state.user_input
         query = st.session_state.user_input
-        if st.session_state.file_content:
-            context = retrieve_information(user_input, st.session_state.file_content)
-            user_input = f"Use as informações a seguir para responder:\n{context}\n\nPergunta: {user_input}"
+        if len(st.session_state.uploaded_files) > 0:
+            st.session_state.file_content = []
+            for content in st.session_state.uploaded_files:
+                vectorstore = store_in_faiss(content)
+                st.session_state.file_content.append(vectorstore)
+            
+            context = " | ".join(map(lambda x: retrieve_information(query, x), st.session_state.file_content))
+            user_input = f"Use as informações a seguir para responder:\n{context}\n\nPergunta: {user_input} (considere os textos separados por '|' como pertencentes a arquivos diferentes)"
         if user_input:
             # Adicionar mensagem do usuário ao histórico
             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -524,6 +538,22 @@ with col_principal:
 
     st.text_input("Digite sua mensagem:", key="user_input", on_change=on_input_change)
 
+    if modal.is_open():
+        with modal.container():
+            st.write("Arquivos adicionados")
+            files_to_remove = []
+            for i, file in enumerate(st.session_state.uploaded_files):
+                col1, col2 = st.columns([4,2])
+                col1.write(f"📄 {st.session_state.file_names[i]}")
+                if col2.button("❌", key=f"remove_{i}"):
+                    files_to_remove.append(i)
+
+            for i in sorted(files_to_remove, reverse=True):
+                del st.session_state.uploaded_files[i]
+                delete_file(st.session_state.file_names[i])
+                del st.session_state.file_names[i]
+                st.rerun()
+
     # Processar o arquivo carregado
     if uploaded_file is not None:
         st.markdown('''
@@ -543,6 +573,14 @@ with col_principal:
                     file_name=uploaded_file.name,
                     file_data=file_content.encode('utf-8')
                 )
+
+                st.success("Arquivo processado e indexado")
+                st.session_state.uploaded_files.append(file_content)
+                st.session_state.file_names.append(uploaded_file.name)
+
+                # Incrementar contador do file uploader para resetar
+                st.session_state["uploaded_file_counter"] += 1
+                st.rerun()
             except UnicodeDecodeError:
                 file_content = "Please provide utf-8 encoded text."
         elif file_extension == 'pdf':
@@ -553,16 +591,19 @@ with col_principal:
                 file_data=file_content.encode('utf-8')
             )
 
-        vectorstore = store_in_faiss(file_content)
-        st.success("Arquivo processado e indexado")
-        st.session_state.file_content = vectorstore
+            st.success("Arquivo processado e indexado")
+            st.session_state.uploaded_files.append(file_content)
+            st.session_state.file_names.append(uploaded_file.name)
+
+            # Incrementar contador do file uploader para resetar
+            st.session_state["uploaded_file_counter"] += 1
+            st.rerun()
+        else: 
+            st.toast(":red[Por favor, adicione um arquivo e formato compatível (.pdf ou .txt)]")
         
-        # Incrementar contador do file uploader para resetar
-        st.session_state["uploaded_file_counter"] += 1
-        st.rerun()
 
     if remove_file:
-        delete_file(st.session_state.id_atual)
+        delete_all_files(st.session_state.id_atual)
         response = f"Deleted files from agent {st.session_state.id_atual}"
         st.session_state.messages.append({
             "role": "assistant",

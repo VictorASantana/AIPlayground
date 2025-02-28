@@ -448,7 +448,7 @@ with col_principal:
 
         uploaded_file = st.file_uploader(
             label="Upload a file", 
-            type=['txt', 'pdf'], 
+            type=['txt', 'pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'ico', 'webp', 'docx', 'doc', 'xls', 'xlsx', 'ppt', 'pptx'], 
             key=f"file_uploader_{st.session_state['uploaded_file_counter']}", 
             label_visibility="collapsed"
         ) 
@@ -605,6 +605,9 @@ with col_principal:
             st.rerun()
         else: 
             st.toast(":red[Por favor, adicione um arquivo e formato compatível (.pdf ou .txt)]")
+            st.session_state["uploaded_file_counter"] += 1
+            st.rerun()
+            
         
 
     if remove_file:

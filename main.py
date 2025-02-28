@@ -1,17 +1,15 @@
 import streamlit as st
 import time
+import os
+from dotenv import load_dotenv
+import sys
 
-# Initialize session state
-if "connected" not in st.session_state:
-    st.session_state["connected"] = False
-if "user_info" not in st.session_state:
-    st.session_state["user_info"] = None
-if "logout" not in st.session_state:
-    st.session_state["logout"] = False
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from services.auth import Authenticator
 
 # Hide the sidebar menu and set wide layout
 st.set_page_config(
-    page_title="Streamlit Auth App",
+    page_title="Instituto Minerva Playground",
     initial_sidebar_state="collapsed",
     layout="wide"
 )
@@ -19,14 +17,6 @@ st.set_page_config(
 time.sleep(0.1)  # Small delay to ensure page config is applied
 #st.switch_page("pages/login.py")
 
-import os
-import streamlit as st
-from dotenv import load_dotenv
-import sys
-import os
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from services.auth import Authenticator
 
 load_dotenv()
 
@@ -69,7 +59,7 @@ if st.session_state["connected"]:
             authenticator.logout()
 
 if authenticator.valido == False:
-    st.write(f"Escolha um email autenticado! Caso seu email seja válido, entre em contato com o administrador.")
+    st.write(f"Escolha um email autenticado! Caso seu email não seja válido, entre em contato com o administrador.")
 
 # Add CSS for centering image and caption
 st.markdown("""

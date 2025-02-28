@@ -472,7 +472,11 @@ with col_principal:
     # Exibir mensagens usando streamlit-chat
     with chat_container:
         for i, msg in enumerate(st.session_state.messages):
-            message(msg["content"], is_user=(msg["role"] == "user"), key=str(i))
+            if msg["role"] == "user":
+                message(msg["content"], is_user=True, key=str(i))
+            else:
+                assistant_name = msg.get("assistant_name", st.session_state.selecao_atual)
+                message(f"**{assistant_name}:** {msg['content']}", is_user=False, key=str(i))
 
     # Input do usuário usando callback
     def on_input_change():
@@ -527,7 +531,8 @@ with col_principal:
                 "response_time": response_time,
                 "prompt_tokens": prompt_tokens,
                 "completion_tokens": completion_tokens,
-                "total_tokens": total_tokens
+                "total_tokens": total_tokens,
+                "assistant_name": st.session_state.selecao_atual
             })
             
             # Atualizar o tempo de resposta mais recente

@@ -12,6 +12,12 @@ from utils.file_processing import extract_text_from_pdf, extract_text_from_txt
 # Configuração inicial da página
 st.set_page_config(page_title="Instituto Minerva Playground", initial_sidebar_state="collapsed", layout="wide")
 
+params = st.query_params
+
+if "redirected" not in st.session_state:
+    st.session_state["redirected"] = True
+    st.switch_page("main.py")  # Change to the actual page path
+
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Inicialização das variáveis de estado

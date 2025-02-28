@@ -14,9 +14,9 @@ st.set_page_config(page_title="Instituto Minerva Playground", initial_sidebar_st
 
 params = st.query_params
 
-if "redirected" not in st.session_state:
-    st.session_state["redirected"] = True
-    st.switch_page("main.py")  # Change to the actual page path
+if "page" not in params:
+    params["page"] = "new_page"
+    st.query_params = params
 
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
@@ -488,8 +488,8 @@ with col_principal:
                 vectorstore = store_in_faiss(content)
                 st.session_state.file_content.append(vectorstore)
             
-            context = " | ".join(map(lambda x: retrieve_information(query, x), st.session_state.file_content))
-            user_input = f"Use as informações a seguir para responder:\n{context}\n\nPergunta: {user_input} (considere os textos separados por '|' como pertencentes a arquivos diferentes)"
+            context = " || ".join(map(lambda x: retrieve_information(query, x), st.session_state.file_content))
+            user_input = f"Use as informações a seguir para responder:\n{context}\n\nPergunta: {user_input} (considere os textos separados por '||' como pertencentes a arquivos diferentes)"
         if user_input:
             # Adicionar mensagem do usuário ao histórico
             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -612,6 +612,8 @@ with col_principal:
 
     if remove_file:
         delete_all_files(st.session_state.id_atual)
+        st.session_state.uploaded_files = []
+        st.session_state.file_names = []
         response = f"Deleted files from agent {st.session_state.id_atual}"
         st.session_state.messages.append({
             "role": "assistant",
